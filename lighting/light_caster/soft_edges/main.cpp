@@ -172,8 +172,10 @@ int main()
     glBindVertexArray(0);
 
     //加载纹理作为漫反射贴图
-    GLuint diffuseMap;
+    GLuint diffuseMap, specularMap, emissionMap;
     glGenTextures(1, &diffuseMap);
+    glGenTextures(1, &specularMap);
+    glGenTextures(1, &emissionMap);
     int width, height;
     unsigned char* image;
     //漫反射贴图
@@ -188,7 +190,6 @@ int main()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST_MIPMAP_NEAREST);
 
     //镜面反射贴图
-    GLuint specularMap;
     glGenTextures(1, &specularMap);
     image = SOIL_load_image("assets/container2_specular.png", &width, &height, 0, SOIL_LOAD_RGB);
     glBindTexture(GL_TEXTURE_2D, specularMap);
@@ -223,7 +224,7 @@ int main()
 
         //设置光源位置和摄像机位置
         lightingShader.Use();
-	glUniform3f(glGetUniformLocation(lightingShader.Program, "lightPos"), lightPos.x, lightPos.y, lightPos.z);
+	glUniform3f(glGetUniformLocation(lightingShader.Program, "light.position"), lightPos.x, lightPos.y, lightPos.z);
 	glUniform3f(glGetUniformLocation(lightingShader.Program, "viewPos"), camera.Position.x, camera.Position.y, camera.Position.z);
         //光源的光照属性,设置光的颜色随时间变化
 	//glm::vec3 lightColor; 
@@ -239,11 +240,17 @@ int main()
 	glUniform3f(glGetUniformLocation(lightingShader.Program, "light.ambient"), 0.2f, 0.2f, 0.2f);
 	glUniform3f(glGetUniformLocation(lightingShader.Program, "light.diffuse"), 0.5f, 0.5f, 0.5f);
 	glUniform3f(glGetUniformLocation(lightingShader.Program, "light.specular"), 1.0f, 1.0f, 1.0f);
-        glUniform3f(glGetUniformLocation(lightingShader.Program, "light.direction"), -0.2f, -1.0f, -0.3f);
+	glUniform1f(glGetUniformLocation(lightingShader.Program, "light.constant"), 1.0f);
+	glUniform1f(glGetUniformLocation(lightingShader.Program, "light.linear"), 0.09);
+	glUniform1f(glGetUniformLocation(lightingShader.Program, "light.quadratic"), 0.032);
+        glUniform3f(glGetUniformLocation(lightingShader.Program, "light.direction"), camera.Front.x, camera.Front.y, camera.Front.z);
+	glUniform1f(glGetUniformLocation(lightingShader.Program, "light.cutOff"), glm::cos(glm::radians(12.5f)));
+	glUniform1f(glGetUniformLocation(lightingShader.Program, "light.outerCutOff"), glm::cos(glm::radians(17.5f)));
+
 	//物体的光照属性
-	//ambient和diffuse属性用纹理贴图代替
-	glUniform3f(glGetUniformLocation(lightingShader.Program, "material.specular"), 0.5f, 0.5f, 0.5f);
-	glUniform1f(glGetUniformLocation(lightingShader.Program, "material.shininess"), 128.0f);
+	//ambient,diffuse,specular属性用纹理贴图代替
+	//glUniform3f(glGetUniformLocation(lightingShader.Program, "material.specular"), 0.5f, 0.5f, 0.5f);
+	glUniform1f(glGetUniformLocation(lightingShader.Program, "material.shininess"), 32.0f);
 
         //创建摄像机转换矩阵
         glm::mat4 view = glm::mat4(1.0f);
@@ -263,15 +270,16 @@ int main()
 
         //绘制物体 (使用物体的顶点属性)
         glBindVertexArray(containerVAO);
-        for (GLuint i = 0; i <10; i++)
-	{
+	for (GLuint i =0; i <10; i++)
+        {
 	    glm::mat4 model = glm::mat4(1.0f);
             model = glm::translate(model, cubePositions[i]);
-	    GLfloat angle = 20.0f * i;
-	    model = glm::rotate(model, angle, glm::vec3(1.0f, 0.3f, 0.5f));
-	    glUniformMatrix4fv(glGetUniformLocation(lightingShader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model));
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-	}
+            GLfloat angle = 20.0f * i;
+            //GLfloat angle = (float)glfwGetTime() * (i+1.0);
+            model = glm::rotate(model, angle, glm::vec3(1.0f, 0.3f, 0.5f));
+            glUniformMatrix4fv(glGetUniformLocation(lightingShader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model));
+            glDrawArrays(GL_TRIANGLES, 0, 36);
+        }        
         glBindVertexArray(0);
 
         //绘制光源,使用不同的着色器程序
